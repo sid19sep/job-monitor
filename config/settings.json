@@ -1,0 +1,75 @@
+{
+    "location": "Dublin",
+    "job_categories": {
+        "Technical Services & Support": [
+            "associate technical services engineer",
+            "technical services engineer",
+            "technical support engineer",
+            "product support engineer",
+            "application support engineer",
+            "customer support engineer",
+            "technical operations engineer",
+            "production support analyst",
+            "technical solutions engineer"
+        ],
+        "Systems Engineering": [
+            "systems engineer",
+            "system engineer",
+            "systems analyst",
+            "system administrator",
+            "infrastructure engineer",
+            "cloud support engineer"
+        ],
+        "IT & Operations": [
+            "it analyst",
+            "it support engineer",
+            "technical analyst",
+            "service desk engineer",
+            "systems support analyst"
+        ],
+        "Data & Analytics": [
+            "data analyst",
+            "data engineer",
+            "business intelligence analyst",
+            "analytics engineer",
+            "data scientist"
+        ],
+        "AI & Machine Learning": [
+            "ai engineer",
+            "artificial intelligence engineer",
+            "machine learning engineer",
+            "ml engineer",
+            "applied ai engineer",
+            "nlp engineer",
+            "mlops engineer"
+        ],
+        "Software Engineering": [
+            "software engineer",
+            "backend engineer",
+            "platform engineer"
+        ]
+    },
+    "relevant_skills": [
+        "python",
+        "sql",
+        "java",
+        "linux",
+        "windows",
+        "cloud",
+        "aws",
+        "azure",
+        "troubleshooting",
+        "incident management",
+        "technical support",
+        "system administration",
+        "rest api",
+        "data analysis",
+        "machine learning",
+        "artificial intelligence",
+        "pytorch",
+        "scikit learn",
+        "networking",
+        "root cause analysis",
+        "it service management"
+    ]
+}
