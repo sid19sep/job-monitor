@@ -1,10 +1,33 @@
+import os
 import sqlite3
 from pathlib import Path
+from datetime import datetime, timezone
 
+import boto3
+from boto3.dynamodb.conditions import Attr
+from botocore.exceptions import ClientError
+
+
+# Select database depending on execution environment
 DB_PATH = Path(__file__).parent / "jobs.db"
+
+TABLE_NAME = os.getenv("JOBS_TABLE")
+
+dynamodb_table = None
+
+if TABLE_NAME:
+    dynamodb = boto3.resource("dynamodb")
+    dynamodb_table = dynamodb.Table(TABLE_NAME)
 
 
 def initialize_database():
+
+    # AWS DynamoDB table already exists
+    if dynamodb_table:
+        print("Using AWS DynamoDB.")
+        return
+
+    # Local SQLite database
     connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
 
@@ -25,8 +48,18 @@ def initialize_database():
     connection.commit()
     connection.close()
 
+    print("Using local SQLite database.")
+
 
 def job_exists(job_id):
+
+    if dynamodb_table:
+        response = dynamodb_table.get_item(
+            Key={"job_id": str(job_id)}
+        )
+
+        return "Item" in response
+
     connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
 
@@ -42,6 +75,36 @@ def job_exists(job_id):
 
 
 def save_job(job):
+
+    if dynamodb_table:
+
+        item = {
+            "job_id": str(job["id"]),
+            "title": job["title"],
+            "company": job.get("company", "MongoDB"),
+            "location": job["location"],
+            "url": job["url"],
+            "date_found": datetime.now(timezone.utc).isoformat(),
+            "score": int(job["score"]),
+            "match_level": job["match_level"],
+            "notified": 0
+        }
+
+        try:
+            dynamodb_table.put_item(
+                Item=item,
+                ConditionExpression="attribute_not_exists(job_id)"
+            )
+
+            return True
+
+        except ClientError as error:
+
+            if error.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                return False
+
+            raise
+
     connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
 
@@ -65,7 +128,29 @@ def save_job(job):
 
     return inserted
 
+
 def get_unnotified_jobs():
+
+    if dynamodb_table:
+
+        jobs = []
+        response = dynamodb_table.scan(
+            FilterExpression=Attr("notified").eq(0)
+        )
+
+        jobs.extend(response.get("Items", []))
+
+        while "LastEvaluatedKey" in response:
+
+            response = dynamodb_table.scan(
+                FilterExpression=Attr("notified").eq(0),
+                ExclusiveStartKey=response["LastEvaluatedKey"]
+            )
+
+            jobs.extend(response.get("Items", []))
+
+        return jobs
+
     connection = sqlite3.connect(DB_PATH)
     connection.row_factory = sqlite3.Row
     cursor = connection.cursor()
@@ -79,10 +164,24 @@ def get_unnotified_jobs():
     jobs = [dict(row) for row in cursor.fetchall()]
 
     connection.close()
+
     return jobs
 
 
 def mark_job_notified(job_id):
+
+    if dynamodb_table:
+
+        dynamodb_table.update_item(
+            Key={"job_id": str(job_id)},
+            UpdateExpression="SET notified = :value",
+            ExpressionAttributeValues={
+                ":value": 1
+            }
+        )
+
+        return
+
     connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
 
@@ -95,7 +194,31 @@ def mark_job_notified(job_id):
     connection.commit()
     connection.close()
 
+
 def mark_all_existing_as_notified():
+
+    if dynamodb_table:
+
+        response = dynamodb_table.scan(
+            ProjectionExpression="job_id"
+        )
+
+        while True:
+
+            for item in response.get("Items", []):
+                mark_job_notified(item["job_id"])
+
+            if "LastEvaluatedKey" not in response:
+                break
+
+            response = dynamodb_table.scan(
+                ProjectionExpression="job_id",
+                ExclusiveStartKey=response["LastEvaluatedKey"]
+            )
+
+        print("Existing vacancies marked as processed.")
+        return
+
     connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
 

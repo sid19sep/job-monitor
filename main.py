@@ -10,7 +10,9 @@ from scrapers.amazon import (
     get_amazon_jobs,
     filter_dublin_jobs as filter_amazon_dublin_jobs
 )
+
 from job_matcher import filter_relevant_jobs
+
 from database.job_store import (
     initialize_database,
     save_job,
@@ -19,7 +21,7 @@ from database.job_store import (
 )
 
 from notifications.telegram import send_message
-from database.job_store import mark_job_notified
+
 
 def send_job_alert(job):
     company = job.get("company", "MongoDB")
@@ -52,6 +54,7 @@ def send_job_alert(job):
     if send_message(message):
         mark_job_notified(job["id"])
 
+
 def run_monitor():
     print("\n========== JOB MONITOR ==========")
 
@@ -73,7 +76,7 @@ def run_monitor():
     print(f"Amazon vacancies: {len(amazon_jobs)}")
     print(f"Amazon Dublin vacancies: {len(amazon_dublin)}")
 
-    # Combine both companies
+    # Combine vacancies
     all_dublin_jobs = mongodb_dublin + amazon_dublin
 
     print(f"\nTotal Dublin vacancies: {len(all_dublin_jobs)}")
@@ -90,7 +93,7 @@ def run_monitor():
         if save_job(job):
             new_jobs.append(job)
 
-    # Send notifications for unnotified jobs
+    # Send notifications
     pending_jobs = get_unnotified_jobs()
 
     for job in pending_jobs:
@@ -105,16 +108,30 @@ def run_monitor():
     print(f"Notifications processed: {len(pending_jobs)}")
 
 
+# AWS Lambda entry point
+def lambda_handler(event, context):
+
+    print("AWS Lambda Job Monitor Started!")
+
+    run_monitor()
+
+    print("AWS Lambda Job Monitor Completed!")
+
+    return {
+        "statusCode": 200,
+        "body": "Job monitoring completed successfully."
+    }
+
+
+# Local execution
 if __name__ == "__main__":
 
     print("MongoDB Job Monitor Started!")
-    print("Checking for new vacancies every 30 minutes.")
+    print("Checking for new vacancies every 60 minutes.")
 
-    # Run immediately when started
     run_monitor()
 
-    # Schedule future checks
-    schedule.every(30).minutes.do(run_monitor)
+    schedule.every(60).minutes.do(run_monitor)
 
     while True:
         schedule.run_pending()
